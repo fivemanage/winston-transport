@@ -52,10 +52,14 @@ export class FivemanageTransport extends Transport {
 			});
 
 			if (res.ok === false) {
-				throw new Error("Failed to upload logs to Fivemanage");
+				const e = await res.json();
+
+				throw new Error(
+					`Status code: ${res.status}; Error: ${e.message ?? "Unknown"}`,
+				);
 			}
 		} catch (error) {
-			console.error(`Failed to process log batch: ${getErrorMessage(error)}`);
+			console.error(`Failed to process log batch -> ${getErrorMessage(error)}`);
 
 			if (this.shouldReprocessFailedBatches) {
 				this.batch.concat(batch);

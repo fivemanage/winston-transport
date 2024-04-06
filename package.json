@@ -1,7 +1,7 @@
 {
 	"name": "@fivemanage/winston",
 	"description": "The official Fivemanage transport for the winston logger, for internal use only!!!",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"license": "GPL-3.0-or-later",
 	"author": "Fivemanage",
 	"repository": {
