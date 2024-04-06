@@ -55,7 +55,7 @@ export class FivemanageTransport extends Transport {
 				const e = await res.json();
 
 				throw new Error(
-					`Status code: ${res.status}; Error: ${e.message ?? "Unknown"}`,
+					`Status code: ${res.status}; Message: ${e.message ?? "Unknown"}`,
 				);
 			}
 		} catch (error) {
