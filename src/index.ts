@@ -12,7 +12,9 @@ export type FivemanageTransportOptions = {
 export class FivemanageTransport extends Transport {
 	private readonly apiUrl = "https://api.fivemanage.com/api/logs/batch";
 	private readonly apiKey: string;
-	private batch: Array<Record<string, unknown>> = [];
+
+	private datasetBatches: Record<string, Array<Record<string, unknown>>> = {};
+
 	private readonly batchInterval: number;
 	private readonly batchCount: number;
 	private readonly shouldReprocessFailedBatches: boolean;
@@ -35,49 +37,70 @@ export class FivemanageTransport extends Transport {
 		}, this.batchInterval);
 	}
 
-	async processBatch() {
-		if (this.batch.length === 0) return;
+	async processBatch() {		
+		const datasetBatches = this.datasetBatches;
+		this.datasetBatches = {};
 
-		const batch = this.batch;
-		this.batch = [];
+		for (const datasetId in datasetBatches) {
+			if (datasetBatches[datasetId].length === 0) continue;
 
-		try {
-			const res = await fetch(this.apiUrl, {
-				method: "POST",
-				body: JSON.stringify(batch),
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: this.apiKey,
-				},
-			});
+			const datasetBatch = datasetBatches[datasetId];
 
-			if (res.ok === false) {
-				const e = await res.json();
-
-				throw new Error(
-					`Status code: ${res.status}; Message: ${e.message ?? "Unknown"}`,
-				);
-			}
-		} catch (error) {
-			console.error(`Failed to process log batch -> ${getErrorMessage(error)}`);
-
-			if (this.shouldReprocessFailedBatches) {
-				this.batch.concat(batch);
+			try {
+				const res = await fetch(this.apiUrl, {
+					method: "POST",
+					body: JSON.stringify(datasetBatch),
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: this.apiKey,
+						"X-Fivemanage-Dataset": datasetId,
+					},
+				});
+	
+				if (res.ok === false) {
+					const e = await res.json();
+	
+					throw new Error(
+						`Status code: ${res.status}; Message: ${e.message ?? "Unknown"}`,
+					);
+				}
+			} catch (error) {
+				console.error(`Failed to process log batch -> ${getErrorMessage(error)}`);
+	
+				if (this.shouldReprocessFailedBatches) {
+					this.datasetBatches[datasetId] = datasetBatch;
+				}
 			}
 		}
 	}
 
 	log(info: Record<string, unknown>, next: () => void): void {
-		this.batch.push({
+		/* this.batch.push({
+			level: info.level,
+			message: info.message,
+			resource: info.resource,
+			metadata: info.metadata,
+		}); */
+
+		const datasetId = info.datasetId as string ?? "default";
+		if (!this.datasetBatches[datasetId]) {
+			this.datasetBatches[datasetId] = [];
+		}
+
+		this.datasetBatches[datasetId].push({
 			level: info.level,
 			message: info.message,
 			resource: info.resource,
 			metadata: info.metadata,
 		});
 
-		if (this.batch.length >= this.batchCount) {
+		if (this.datasetBatches[datasetId].length >= this.batchCount) {
 			this.processBatch();
 		}
+
+		/* if (this.batch.length >= this.batchCount) {
+			this.processBatch();
+		} */
 
 		next();
 	}
