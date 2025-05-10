@@ -17,7 +17,6 @@ export class FivemanageTransport extends Transport {
 
 	private readonly batchInterval: number;
 	private readonly batchCount: number;
-	private readonly shouldReprocessFailedBatches: boolean;
 
 	constructor(opts: FivemanageTransportOptions) {
 		super(opts);
@@ -25,8 +24,6 @@ export class FivemanageTransport extends Transport {
 		this.apiKey = opts.apiKey;
 		this.batchInterval = opts.batchInterval ?? 5000;
 		this.batchCount = opts.batchCount ?? 10;
-		this.shouldReprocessFailedBatches =
-			opts.shouldReprocessFailedBatches ?? true;
 
 		this.startInterval();
 	}
@@ -60,29 +57,20 @@ export class FivemanageTransport extends Transport {
 				if (res.ok === false) {
 					const e = await res.json();
 	
+					console.error(e);
 					throw new Error(
-						`Status code: ${res.status}; Message: ${e.message ?? "Unknown"}`,
+						`Status code: ${res.status}; Message: ${e.error ?? "Unknown"}`,
 					);
 				}
 			} catch (error) {
 				console.error(`Failed to process log batch -> ${getErrorMessage(error)}`);
-	
-				if (this.shouldReprocessFailedBatches) {
-					this.datasetBatches[datasetId] = datasetBatch;
-				}
 			}
 		}
 	}
 
 	log(info: Record<string, unknown>, next: () => void): void {
-		/* this.batch.push({
-			level: info.level,
-			message: info.message,
-			resource: info.resource,
-			metadata: info.metadata,
-		}); */
+		const datasetId = info?.datasetId as string ?? "default";
 
-		const datasetId = info.datasetId as string ?? "default";
 		if (!this.datasetBatches[datasetId]) {
 			this.datasetBatches[datasetId] = [];
 		}
@@ -97,10 +85,6 @@ export class FivemanageTransport extends Transport {
 		if (this.datasetBatches[datasetId].length >= this.batchCount) {
 			this.processBatch();
 		}
-
-		/* if (this.batch.length >= this.batchCount) {
-			this.processBatch();
-		} */
 
 		next();
 	}
