@@ -17,6 +17,7 @@ export class FivemanageTransport extends Transport {
 
 	private readonly batchInterval: number;
 	private readonly batchCount: number;
+	private readonly shouldReprocessFailedBatches: boolean;
 
 	constructor(opts: FivemanageTransportOptions) {
 		super(opts);
@@ -24,6 +25,8 @@ export class FivemanageTransport extends Transport {
 		this.apiKey = opts.apiKey;
 		this.batchInterval = opts.batchInterval ?? 5000;
 		this.batchCount = opts.batchCount ?? 10;
+		this.shouldReprocessFailedBatches =
+			opts.shouldReprocessFailedBatches ?? true;
 
 		this.startInterval();
 	}
@@ -64,6 +67,10 @@ export class FivemanageTransport extends Transport {
 				}
 			} catch (error) {
 				console.error(`Failed to process log batch -> ${getErrorMessage(error)}`);
+
+				if (this.shouldReprocessFailedBatches) {
+					this.datasetBatches[datasetId] = datasetBatch;
+				}
 			}
 		}
 	}
